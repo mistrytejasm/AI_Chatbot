@@ -230,7 +230,7 @@ const Home = () => {
   return (
     <div className="flex justify-center bg-gray-100 min-h-screen py-8 px-4">
       {/* Main container with refined shadow and border */}
-      <div className="w-[70%] bg-white flex flex-col rounded-xl shadow-lg border border-gray-100 overflow-hidden h-[90vh]">
+      <div className="w-[60%] bg-white flex flex-col rounded-xl shadow-lg border border-gray-100 overflow-hidden h-[90vh]">
         <Header />
         <MessageArea messages={messages} />
         <InputBar currentMessage={currentMessage} setCurrentMessage={setCurrentMessage} onSubmit={handleSubmit} />

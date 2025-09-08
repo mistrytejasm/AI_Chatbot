@@ -127,44 +127,54 @@ class ResponseFormatter:
         return '\n'.join(cleaned_lines).strip()
 
     @staticmethod
-    def extract_urls_from_search_results(search_results: str) -> List[str]:
-        """Extract URLs from search results"""
+    def extract_urls_from_search_results(search_results_content):
+        """Extract URLs from Tavily search results - FIXED VERSION"""
         try:
-            print(f"🔍 Extracting URLs from: {search_results[:200]}...")
-
-            if isinstance(search_results, str):
-                # Try to evaluate the string as Python literal
+            # Handle both string and dict inputs
+            if isinstance(search_results_content, str):
+                # Try to parse as JSON if it's a string
+                import json
                 try:
-                    results = eval(search_results)
-                except:
-                    # If eval fails, try to parse as JSON
+                    search_data = json.loads(search_results_content)
+                except json.JSONDecodeError:
+                    # If not JSON, try to evaluate as Python literal
+                    import ast
                     try:
-                        results = json.loads(search_results)
-                    except:
-                        print("❌ Failed to parse search results")
+                        search_data = ast.literal_eval(search_results_content)
+                    except (ValueError, SyntaxError):
+                        print("❌ Could not parse search results string")
                         return []
             else:
-                results = search_results
+                search_data = search_results_content
 
-            if isinstance(results, list):
-                urls = []
-                for item in results:
-                    if isinstance(item, dict):
-                        if "url" in item:
-                            urls.append(item["url"])
-                            print(f"✅ Found URL: {item['url']}")
-                        elif "source" in item and isinstance(item["source"], str):
-                            urls.append(item["source"])
-                            print(f"✅ Found source: {item['source']}")
+            # Debug: Print the structure
+            print(f"🔍 Search data type: {type(search_data)}")
+            if isinstance(search_data, dict):
+                print(f"🔍 Available keys: {list(search_data.keys())}")
 
-                print(f"🔗 Total URLs extracted: {len(urls)}")
-                return urls
-
-            print("❌ Search results is not a list")
-            return []
+            # Extract URLs from the correct structure
+            if isinstance(search_data, dict) and 'results' in search_data:
+                results = search_data['results']
+                print(f"🔍 Results type: {type(results)}, length: {len(results) if isinstance(results, list) else 'N/A'}")
+                
+                if isinstance(results, list):
+                    urls = []
+                    for item in results:
+                        if isinstance(item, dict) and 'url' in item:
+                            urls.append(item['url'])
+                    print(f"🔗 Successfully extracted {len(urls)} URLs")
+                    return urls
+                else:
+                    print("❌ 'results' key exists but contains non-list data")
+                    return []
+            else:
+                print("❌ Search data missing 'results' key or not a dictionary")
+                return []
 
         except Exception as e:
             print(f"❌ Error extracting URLs: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     @staticmethod

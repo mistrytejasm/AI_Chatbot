@@ -1,11 +1,10 @@
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_groq import ChatGroq
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_tavily import TavilySearch
 from core.config import settings
 
 # Initialize shared dependencies
 memory = MemorySaver()
-
 
 def get_llm():
     """Get configured LLM instance"""
@@ -26,12 +25,7 @@ def get_search_tool():
         return None
 
     # Initialize with correct parameters
-    tool = TavilySearchResults(
+    return TavilySearch(
         max_results=settings.MAX_SEARCH_RESULTS,
         api_key=settings.TAVILY_API_KEY
     )
-
-    # Ensure the tool name is correct
-    tool.name = "tavily_search_results_json"
-
-    return tool

@@ -3,7 +3,6 @@ from langgraph.graph import add_messages, StateGraph, END
 from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage, SystemMessage
 from uuid import uuid4
 import json
-
 from core.dependencies import get_llm, memory
 from services.search_service import SearchService
 from utils.formatters import ResponseFormatter
@@ -22,41 +21,23 @@ class ChatService:
 
     def _get_system_prompt(self) -> str:
         """Enhanced system prompt for Perplexity-like responses"""
-        return """You are Perplexity 2.0, an advanced AI research assistant that provides comprehensive, well-structured, and insightful responses. Your goal is to be helpful, accurate, and thorough.
+        return """# Perplexity 2.0 - Research Assistant Prompt
 
-**Response Guidelines:**
+You are, an advanced AI research assistant. Provide clear, comprehensive, and accurate answers with the following style:
 
-1. **Structure your responses clearly:**
-   - Use headers (##) for main topics
-   - Use subheaders (###) for subtopics  
-   - Use bullet points (•) for lists and key points
-   - Organize information logically from general to specific
+* Use **headers (##)** for major sections
+* Use **bullet points (•)** for lists of items or features
+* Use **numbered lists** for step-by-step explanations
+* Use **tables only** when comparing multiple items with specific attributes
+* Write in **natural, conversational paragraphs** for explanations
+* Start with a **brief overview** if the topic is complex
+* Include **context, background, and synthesized insights** from reliable sources
+* Be **concise but thorough**, explaining complex topics accessibly
+* End with a **summary or key takeaways** for longer responses
+* Maintain a **conversational yet professional tone**; show confidence in facts, note uncertainties when needed, and anticipate follow-up questions.
 
-2. **Content Quality:**
-   - Provide comprehensive yet concise answers
-   - Include relevant context and background information
-   - Synthesize information from multiple sources when available
-   - Explain complex topics in an accessible way
-
-3. **When using search:**
-   - Always search for current, accurate information when needed
-   - Synthesize search results into a coherent response
-   - Don't just repeat raw search data - analyze and present it meaningfully
-   - Cite or reference information appropriately
-
-4. **Formatting Standards:**
-   - Start with a brief overview if the topic is complex
-   - Use numbered lists for sequential information
-   - Use bullet points for features, benefits, or key points
-   - End with a summary or key takeaways for longer responses
-
-5. **Tone and Style:**
-   - Be conversational yet professional
-   - Show confidence in well-established facts
-   - Acknowledge uncertainty when appropriate
-   - Be helpful and anticipate follow-up questions
-
-Remember: You are not just an information retriever - you are an intelligent analyst who provides valuable insights and well-structured knowledge."""
+Your role is not just to retrieve information but to act as an **analyst**, offering insights, synthesis, and clear knowledge delivery.
+"""
 
     async def _model_node(self, state: State):
         """Process user input and generate responses"""
@@ -83,58 +64,96 @@ Remember: You are not just an information retriever - you are an intelligent ana
             return {"messages": [error_msg]}
 
     async def _tool_node(self, state: State):
-        """Execute tool calls (searches)"""
+        """Execute tool calls with improved error handling"""
         try:
-            tool_calls = state["messages"][-1].tool_calls
+            last_message = state["messages"][-1]
+            
+            if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+                print("⚠️  No tool calls found")
+                return {"messages": []}
+            
+            tool_calls = last_message.tool_calls
             tool_messages = []
-
+            
+            print(f"🔧 Processing {len(tool_calls)} tool calls")
+            
             for tool_call in tool_calls:
                 tool_name = tool_call["name"]
                 tool_args = tool_call["args"]
                 tool_id = tool_call["id"]
-
-                if tool_name == "tavily_search_results_json":
-                    search_result = await self.search_service.perform_search(tool_args.get("query", ""))
-
+                
+                print(f"🔍 Executing: {tool_name}")
+                
+                if tool_name == "tavily_search":  # Updated tool name
+                    search_result = await self.search_service.perform_search(
+                        tool_args.get("query", "")
+                    )
+                    
                     if search_result["success"]:
+                        # Convert result to string for ToolMessage
+                        content = str(search_result["results"])
                         tool_message = ToolMessage(
-                            content=str(search_result["results"]),
+                            content=content,
                             tool_call_id=tool_id,
                             name=tool_name
                         )
+                        print(f"✅ Search successful")
                     else:
                         tool_message = ToolMessage(
                             content=f"Search failed: {search_result['error']}",
                             tool_call_id=tool_id,
                             name=tool_name
                         )
-
+                        print(f"❌ Search failed: {search_result['error']}")
+                    
                     tool_messages.append(tool_message)
-
+            
             return {"messages": tool_messages}
+            
         except Exception as e:
             print(f"❌ Tool node error: {e}")
             return {"messages": []}
 
+
     def _tools_router(self, state: State):
-        """Route to tools if needed"""
-        try:
-            last_message = state["messages"][-1]
-            has_tools = hasattr(last_message, "tool_calls") and len(last_message.tool_calls) > 0
-            return "tool_node" if has_tools else END
-        except Exception:
-            return END
+        """Fixed routing logic to prevent infinite loops"""
+        last_message = state["messages"][-1]
+        
+        # Case 1: Tool execution completed - go back to model for final response  
+        if isinstance(last_message, ToolMessage):
+            return "model"
+        
+        # Case 2: AI message with pending tool calls - execute tools
+        if (isinstance(last_message, AIMessage) and 
+            hasattr(last_message, "tool_calls") and 
+            last_message.tool_calls):
+            return "tool_node"
+        
+        # Case 3: AI message without tool calls - conversation ends
+        return END
+
+
+
 
     def _build_graph(self):
-        """Build the conversation graph"""
+        """Build the conversation graph with proper flow control"""
         graph_builder = StateGraph(State)
+        
+        # Add nodes
         graph_builder.add_node("model", self._model_node)
         graph_builder.add_node("tool_node", self._tool_node)
+        
+        # Set entry point
         graph_builder.set_entry_point("model")
+        
+        # Add conditional routing from model
         graph_builder.add_conditional_edges("model", self._tools_router)
+        
+        # Always return to model after tool execution
         graph_builder.add_edge("tool_node", "model")
-
+        
         return graph_builder.compile(checkpointer=memory)
+
 
     async def generate_response(self, message: str, checkpoint_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """Generate streaming chat responses"""
@@ -167,16 +186,16 @@ Remember: You are not just an information retriever - you are an intelligent ana
                                 if message_type == "AIMessage":
                                     # Check for active tool calls
                                     has_active_tool_calls = (
-                                            hasattr(message_obj, "tool_calls") and
-                                            message_obj.tool_calls and
-                                            len(message_obj.tool_calls) > 0 and
-                                            any(call.get("name") for call in message_obj.tool_calls)
+                                        hasattr(message_obj, "tool_calls") and
+                                        message_obj.tool_calls and
+                                        len(message_obj.tool_calls) > 0 and
+                                        any(call.get("name") == "tavily_search" for call in message_obj.tool_calls)
                                     )
 
                                     if has_active_tool_calls:
                                         # Handle search start
                                         for tool_call in message_obj.tool_calls:
-                                            if tool_call.get("name") == "tavily_search_results_json":
+                                            if tool_call.get("name") == "tavily_search":
                                                 search_query = tool_call.get("args", {}).get("query", "")
                                                 query_json = self.formatter.safe_json_dumps(search_query)
                                                 yield f'data: {{"type": "search_start", "query": {query_json}}}\n\n'
@@ -189,7 +208,7 @@ Remember: You are not just an information retriever - you are an intelligent ana
                                         print(f"📤 SENDING FINAL RESPONSE: {formatted_content[:100]}...")
 
                                 elif message_type == "ToolMessage" and hasattr(message_obj, "name"):
-                                    if message_obj.name == "tavily_search_results_json":
+                                    if message_obj.name == "tavily_search":
                                         print(f"🔧 Processing tool message: {message_obj.content[:100]}...")
                                         urls = self.formatter.extract_urls_from_search_results(message_obj.content)
                                         print(f"🔗 Extracted {len(urls)} URLs: {urls}")
