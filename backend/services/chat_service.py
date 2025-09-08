@@ -7,6 +7,7 @@ from core.dependencies import get_llm, memory
 from services.search_service import SearchService
 from utils.formatters import ResponseFormatter
 
+# Note: There is lots of recursive tool call is happening need to fix this 
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
