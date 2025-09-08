@@ -159,6 +159,9 @@ Your role is not just to retrieve information but to act as an **analyst**, offe
         """Generate streaming chat responses"""
         try:
             print(f"🚀 Starting chat response for: '{message}'")
+            
+            # Store URLs for citation mapping
+            current_urls = []
 
             # Handle checkpoint
             if checkpoint_id is None:
@@ -201,16 +204,22 @@ Your role is not just to retrieve information but to act as an **analyst**, offe
                                                 yield f'data: {{"type": "search_start", "query": {query_json}}}\n\n'
                                                 print(f"🔍 Search started: {search_query}")
                                     else:
-                                        # Final AI response - format it properly
-                                        formatted_content = self.formatter.format_response(message_obj.content)
+                                        # Final AI response - format it properly WITH CITATIONS
+                                        formatted_content = self.formatter.format_response_with_citations(
+                                            message_obj.content, current_urls
+                                        )
                                         content_json = self.formatter.safe_json_dumps(formatted_content)
-                                        yield f'data: {{"type": "content", "content": {content_json}}}\n\n'
+                                        urls_json = self.formatter.safe_json_dumps(current_urls)
+                                        
+                                        # Send both content and citation URLs
+                                        yield f'data: {{"type": "content", "content": {content_json}, "citations": {urls_json}}}\n\n'
                                         print(f"📤 SENDING FINAL RESPONSE: {formatted_content[:100]}...")
 
                                 elif message_type == "ToolMessage" and hasattr(message_obj, "name"):
                                     if message_obj.name == "tavily_search":
                                         print(f"🔧 Processing tool message: {message_obj.content[:100]}...")
                                         urls = self.formatter.extract_urls_from_search_results(message_obj.content)
+                                        current_urls.extend(urls)  # Store URLs for citations
                                         print(f"🔗 Extracted {len(urls)} URLs: {urls}")
                                         urls_json = self.formatter.safe_json_dumps(urls)
                                         yield f'data: {{"type": "search_results", "urls": {urls_json}}}\n\n'

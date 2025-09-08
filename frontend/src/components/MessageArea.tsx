@@ -101,8 +101,47 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
     );
 };
 
-// Enhanced markdown parser with proper table support
-const parseMarkdown = (content: string) => {
+// Citation parsing function
+const parseCitations = (content: string, citations: string[] = []) => {
+    if (!content) return content;
+
+    // Replace citation numbers [1], [2], etc. with clickable elements
+    const citationRegex = /\[(\d+)\]/g;
+    const parts = content.split(citationRegex);
+
+    const result: (string | JSX.Element)[] = [];
+
+    for (let i = 0; i < parts.length; i++) {
+        if (i % 2 === 0) {
+            // Regular text
+            result.push(parts[i]);
+        } else {
+            // Citation number
+            const citationNum = parseInt(parts[i]);
+            const url = citations[citationNum - 1]; // Arrays are 0-indexed
+
+            if (url) {
+                result.push(
+                    <button
+                        key={`citation-${i}`}
+                        onClick={() => window.open(url, '_blank')}
+                        className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 hover:border-blue-300 transition-colors duration-200 mx-0.5 cursor-pointer"
+                        title={`Source: ${new URL(url).hostname}`}
+                    >
+                        {citationNum}
+                    </button>
+                );
+            } else {
+                result.push(`[${citationNum}]`);
+            }
+        }
+    }
+
+    return result;
+};
+
+// Enhanced markdown parser with citation support
+const parseMarkdown = (content: string, citations: string[] = []) => {
     if (!content) return content;
 
     // Clean up the content first
@@ -176,20 +215,29 @@ const parseMarkdown = (content: string) => {
         inTable = false;
     };
 
+    // Updated formatInlineMarkdown with citation support
     const formatInlineMarkdown = (text: string): JSX.Element => {
         // Handle bold text
         let parts = text.split(/(\*\*.*?\*\*)/g);
+        const formatted = parts.map((part, idx) => {
+            if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+                return <strong key={idx} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+            }
+            // Handle italic text
+            if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
+                return <em key={idx} className="italic">{part.slice(1, -1)}</em>;
+            }
+            return part;
+        });
+
+        // Process citations in the formatted text
         return (
             <span>
-                {parts.map((part, idx) => {
-                    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-                        return <strong key={idx} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+                {formatted.map((formattedPart, idx) => {
+                    if (typeof formattedPart === 'string') {
+                        return parseCitations(formattedPart, citations);
                     }
-                    // Handle italic text
-                    if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
-                        return <em key={idx} className="italic">{part.slice(1, -1)}</em>;
-                    }
-                    return part;
+                    return formattedPart;
                 })}
             </span>
         );
@@ -276,6 +324,7 @@ const parseMarkdown = (content: string) => {
     return <div className="space-y-1">{parsed}</div>;
 };
 
+// Updated Message interface with citations
 interface Message {
     id: number;
     content: string;
@@ -283,12 +332,14 @@ interface Message {
     type: string;
     isLoading?: boolean;
     searchInfo?: any;
+    citations?: string[]; // Added this line
 }
 
 interface MessageAreaProps {
     messages: Message[];
 }
 
+// MessageArea component
 const MessageArea: React.FC<MessageAreaProps> = ({ messages }) => {
     return (
         <div className="flex-grow overflow-y-auto bg-[#FCFCF8] border-b border-gray-100" style={{ minHeight: 0 }}>
@@ -306,7 +357,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({ messages }) => {
                                 className={`rounded-lg py-3 px-4 ${message.isUser
                                     ? 'bg-gradient-to-br from-[#5E507F] to-[#4A3F71] text-white rounded-br-none shadow-md'
                                     : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm'
-                                    }`}
+                                }`}
                             >
                                 {message.isLoading ? (
                                     <PremiumTypingAnimation />
@@ -315,11 +366,35 @@ const MessageArea: React.FC<MessageAreaProps> = ({ messages }) => {
                                         {message.isUser ? (
                                             <p className="mb-0 text-white text-sm">{message.content}</p>
                                         ) : (
-                                            parseMarkdown(message.content || "Waiting for response...")
+                                            parseMarkdown(message.content || "Waiting for response...", message.citations || [])
                                         )}
                                     </div>
                                 )}
                             </div>
+
+                            {/* Citations List (Optional - for reference) */}
+                            {!message.isUser && message.citations && message.citations.length > 0 && (
+                                <div className="mt-2 text-xs text-gray-500">
+                                    <details className="cursor-pointer">
+                                        <summary className="hover:text-gray-700">Sources ({message.citations.length})</summary>
+                                        <div className="mt-1 space-y-1 pl-4">
+                                            {message.citations.map((url, idx) => (
+                                                <div key={idx} className="flex items-start">
+                                                    <span className="font-mono text-blue-600 mr-2">[{idx + 1}]</span>
+                                                    <a
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 hover:text-blue-800 underline truncate max-w-xs"
+                                                    >
+                                                        {new URL(url).hostname}
+                                                    </a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </details>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}

@@ -18,6 +18,7 @@ interface Message {
   type: string;
   isLoading?: boolean;
   searchInfo?: SearchInfo;
+  citations?: string[];
 }
 
 const Home = () => {
@@ -96,11 +97,17 @@ const Home = () => {
               streamedContent += data.content;
               hasReceivedContent = true;
 
+              // Extract citations if provided
+              const citations = data.citations ? data.citations : [];
+
               // Update message with accumulated content
               setMessages(prev =>
                 prev.map(msg =>
                   msg.id === aiResponseId
-                    ? { ...msg, content: streamedContent, isLoading: false }
+                    ? { ...msg, content: streamedContent, 
+                      isLoading: false,
+                      citations: citations // Add citations to message
+                     }
                     : msg
                 )
               );

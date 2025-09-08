@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # AI Configuration
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
-    MODEL_NAME: str = "openai/gpt-oss-20b"
+    MODEL_NAME: str = "openai/gpt-oss-120b"
     MODEL_TEMPERATURE: float = 0.1
 
     # Search Configuration
