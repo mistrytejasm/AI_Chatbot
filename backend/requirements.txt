@@ -9,3 +9,19 @@ langchain-community
 langgraph
 tavily-python
 python-multipart
+langchain-core
+langchain-tavily
+
+
+# NEW DEPENDENCIES FOR DOCUMENT PROCESSING
+PyMuPDF
+pdfplumber
+python-docx
+openpyxl
+python-pptx
+pillow
+pytesseract
+chromadb
+sentence-transformers
+numpy
+tiktoken

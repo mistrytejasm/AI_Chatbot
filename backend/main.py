@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes.chat import router as chat_router
+from api.routes.documents import router as documents_router
 from core.config import settings
+import uvicorn
 
 def create_application() -> FastAPI:
     app = FastAPI(
@@ -21,13 +23,15 @@ def create_application() -> FastAPI:
 
     # Include routers WITHOUT prefix to match frontend
     app.include_router(chat_router)
+    app.include_router(documents_router)
 
     @app.get("/")
     async def root():
         return {
             "message": "Perplexity 2.0 API is running",
             "status": "healthy",
-            "version": "2.0.0"
+            "version": "2.0.0",
+            "features": ["chat", "web_search", "document_processing"]
         }
 
     @app.get("/health")
@@ -39,7 +43,7 @@ def create_application() -> FastAPI:
 app = create_application()
 
 if __name__ == "__main__":
-    import uvicorn
+    
     print("🚀 Starting Perplexity 2.0 API server...")
     uvicorn.run(
         "main:app",

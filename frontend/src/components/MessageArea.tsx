@@ -28,15 +28,34 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
                             <div className="absolute -left-[7px] top-3 w-0.5 h-[calc(100%+1rem)] bg-gradient-to-b from-teal-300 to-teal-200"></div>
                         )}
                         <div className="flex flex-col">
-                            <span className="font-medium mb-2 ml-2">Searching the web</span>
+                            <span className="font-medium mb-2 ml-2">
+                                {searchInfo.source === 'controlled' ? 'Searching the web' : 
+                                 searchInfo.source === 'documents' ? 'Searching documents' : 'Searching the web'}
+                            </span>
+                            
+                            {/* Show Original Query */}
                             <div className="flex flex-wrap gap-2 pl-2 mt-1">
-                                <div className="bg-gray-100 text-xs px-3 py-1.5 rounded border border-gray-200 inline-flex items-center">
-                                    <svg className="w-3 h-3 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="bg-blue-100 text-xs px-3 py-1.5 rounded border border-blue-200 inline-flex items-center">
+                                    <svg className="w-3 h-3 mr-1.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                     </svg>
-                                    {searchInfo.query}
+                                    <span className="font-semibold text-blue-700">Original:</span>
+                                    <span className="ml-1 text-blue-600">{searchInfo.query}</span>
                                 </div>
                             </div>
+                            
+                            {/* Show Sub-Queries only if more than one */}
+                            {searchInfo.subQueries && searchInfo.subQueries.length > 1 && 
+                             searchInfo.search_type !== 'document_only' && (
+                                <div className="flex flex-wrap gap-2 pl-2 mt-2">
+                                    {searchInfo.subQueries.slice(1).map((subQuery: string, index: number) => (
+                                        <div key={index} className="bg-gray-100 text-xs px-3 py-1.5 rounded border border-gray-200 inline-flex items-center">
+                                            <span className="text-gray-500 font-medium mr-1">{index + 2}.</span>
+                                            <span className="text-gray-600">{subQuery}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -46,7 +65,39 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
                         <div className="absolute -left-3 top-1 w-2.5 h-2.5 bg-teal-400 rounded-full z-10 shadow-sm"></div>
                         <div className="flex flex-col">
                             <span className="font-medium mb-2 ml-2">Reading sources</span>
-                            {searchInfo.urls && searchInfo.urls.length > 0 && (
+                            
+                            {/* Show Web Sources */}
+                            {searchInfo.webSources && searchInfo.webSources.length > 0 && (
+                                <div className="pl-2 space-y-1 mb-2">
+                                    <div className="flex flex-wrap gap-2">
+                                        {searchInfo.webSources.map((source: any, index: number) => (
+                                            <div key={`web-${index}`} className="bg-blue-50 text-xs px-3 py-1.5 rounded border border-blue-200 truncate max-w-[200px] transition-all duration-200 hover:bg-blue-100">
+                                                <span className="text-blue-600 font-medium">
+                                                    🌐 {source.domain}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Show Document Sources (Unique only) */}
+                            {searchInfo.documentSources && searchInfo.documentSources.length > 0 && (
+                                <div className="pl-2 space-y-1">
+                                    <div className="flex flex-wrap gap-2">
+                                        {searchInfo.documentSources.map((source: any, index: number) => (
+                                            <div key={`doc-${index}`} className="bg-purple-50 text-xs px-3 py-1.5 rounded border border-purple-200 truncate max-w-[200px] transition-all duration-200 hover:bg-purple-100">
+                                                <span className="text-purple-600 font-medium">
+                                                    📄 {source.filename}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Fallback for Legacy URL Display */}
+                            {!searchInfo.webSources && !searchInfo.documentSources && searchInfo.urls && searchInfo.urls.length > 0 && (
                                 <div className="pl-2 space-y-1">
                                     <div className="flex flex-wrap gap-2">
                                         {Array.isArray(searchInfo.urls) ? (
@@ -56,7 +107,7 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
                                                     return (
                                                         <div key={index} className="bg-blue-50 text-xs px-3 py-1.5 rounded border border-blue-200 truncate max-w-[250px] transition-all duration-200 hover:bg-blue-100">
                                                             <span className="text-blue-600 font-medium">
-                                                                {hostname}
+                                                                🌐 {hostname}
                                                             </span>
                                                         </div>
                                                     );
@@ -76,6 +127,21 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Fallback for Legacy Sources Display */}
+                            {!searchInfo.documentSources && searchInfo.sources && searchInfo.sources.length > 0 && (
+                                <div className="pl-2 space-y-1 mt-2">
+                                    <div className="flex flex-wrap gap-2">
+                                        {searchInfo.sources.map((source: string, index: number) => (
+                                            <div key={index} className="bg-purple-50 text-xs px-3 py-1.5 rounded border border-purple-200 truncate max-w-[250px] transition-all duration-200 hover:bg-purple-100">
+                                                <span className="text-purple-600 font-medium">
+                                                    📄 {source}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -90,7 +156,7 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
                 {searchInfo.stages.includes('error') && (
                     <div className="relative">
                         <div className="absolute -left-3 top-1 w-2.5 h-2.5 bg-red-400 rounded-full z-10 shadow-sm"></div>
-                        <span className="font-medium">Search error</span>
+                        <span className="font-medium pl-2 text-red-600">Search error</span>
                         <div className="pl-4 text-xs text-red-500 mt-1">
                             {searchInfo.error || "An error occurred during search."}
                         </div>
@@ -101,47 +167,9 @@ const SearchStages = ({ searchInfo }: { searchInfo: any }) => {
     );
 };
 
-// Citation parsing function
-const parseCitations = (content: string, citations: string[] = []) => {
-    if (!content) return content;
 
-    // Replace citation numbers [1], [2], etc. with clickable elements
-    const citationRegex = /\[(\d+)\]/g;
-    const parts = content.split(citationRegex);
-
-    const result: (string | JSX.Element)[] = [];
-
-    for (let i = 0; i < parts.length; i++) {
-        if (i % 2 === 0) {
-            // Regular text
-            result.push(parts[i]);
-        } else {
-            // Citation number
-            const citationNum = parseInt(parts[i]);
-            const url = citations[citationNum - 1]; // Arrays are 0-indexed
-
-            if (url) {
-                result.push(
-                    <button
-                        key={`citation-${i}`}
-                        onClick={() => window.open(url, '_blank')}
-                        className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 hover:border-blue-300 transition-colors duration-200 mx-0.5 cursor-pointer"
-                        title={`Source: ${new URL(url).hostname}`}
-                    >
-                        {citationNum}
-                    </button>
-                );
-            } else {
-                result.push(`[${citationNum}]`);
-            }
-        }
-    }
-
-    return result;
-};
-
-// Enhanced markdown parser with citation support
-const parseMarkdown = (content: string, citations: string[] = []) => {
+// Enhanced markdown parser with proper table support
+const parseMarkdown = (content: string) => {
     if (!content) return content;
 
     // Clean up the content first
@@ -215,29 +243,20 @@ const parseMarkdown = (content: string, citations: string[] = []) => {
         inTable = false;
     };
 
-    // Updated formatInlineMarkdown with citation support
     const formatInlineMarkdown = (text: string): JSX.Element => {
         // Handle bold text
         let parts = text.split(/(\*\*.*?\*\*)/g);
-        const formatted = parts.map((part, idx) => {
-            if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-                return <strong key={idx} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
-            }
-            // Handle italic text
-            if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
-                return <em key={idx} className="italic">{part.slice(1, -1)}</em>;
-            }
-            return part;
-        });
-
-        // Process citations in the formatted text
         return (
             <span>
-                {formatted.map((formattedPart, idx) => {
-                    if (typeof formattedPart === 'string') {
-                        return parseCitations(formattedPart, citations);
+                {parts.map((part, idx) => {
+                    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+                        return <strong key={idx} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
                     }
-                    return formattedPart;
+                    // Handle italic text
+                    if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
+                        return <em key={idx} className="italic">{part.slice(1, -1)}</em>;
+                    }
+                    return part;
                 })}
             </span>
         );
@@ -324,7 +343,6 @@ const parseMarkdown = (content: string, citations: string[] = []) => {
     return <div className="space-y-1">{parsed}</div>;
 };
 
-// Updated Message interface with citations
 interface Message {
     id: number;
     content: string;
@@ -332,14 +350,12 @@ interface Message {
     type: string;
     isLoading?: boolean;
     searchInfo?: any;
-    citations?: string[]; // Added this line
 }
 
 interface MessageAreaProps {
     messages: Message[];
 }
 
-// MessageArea component
 const MessageArea: React.FC<MessageAreaProps> = ({ messages }) => {
     return (
         <div className="flex-grow overflow-y-auto bg-[#FCFCF8] border-b border-gray-100" style={{ minHeight: 0 }}>
@@ -357,7 +373,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({ messages }) => {
                                 className={`rounded-lg py-3 px-4 ${message.isUser
                                     ? 'bg-gradient-to-br from-[#5E507F] to-[#4A3F71] text-white rounded-br-none shadow-md'
                                     : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm'
-                                }`}
+                                    }`}
                             >
                                 {message.isLoading ? (
                                     <PremiumTypingAnimation />
@@ -366,35 +382,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({ messages }) => {
                                         {message.isUser ? (
                                             <p className="mb-0 text-white text-sm">{message.content}</p>
                                         ) : (
-                                            parseMarkdown(message.content || "Waiting for response...", message.citations || [])
+                                            parseMarkdown(message.content || "Waiting for response...")
                                         )}
                                     </div>
                                 )}
                             </div>
-
-                            {/* Citations List (Optional - for reference) */}
-                            {!message.isUser && message.citations && message.citations.length > 0 && (
-                                <div className="mt-2 text-xs text-gray-500">
-                                    <details className="cursor-pointer">
-                                        <summary className="hover:text-gray-700">Sources ({message.citations.length})</summary>
-                                        <div className="mt-1 space-y-1 pl-4">
-                                            {message.citations.map((url, idx) => (
-                                                <div key={idx} className="flex items-start">
-                                                    <span className="font-mono text-blue-600 mr-2">[{idx + 1}]</span>
-                                                    <a
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 hover:text-blue-800 underline truncate max-w-xs"
-                                                    >
-                                                        {new URL(url).hostname}
-                                                    </a>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </details>
-                                </div>
-                            )}
                         </div>
                     </div>
                 ))}

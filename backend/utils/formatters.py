@@ -7,55 +7,26 @@ class ResponseFormatter:
     """Format AI responses for better readability and structure"""
 
     @staticmethod
-    def format_response_with_citations(content: str, urls: list) -> str:
-        """Format response and add citation numbers based on available URLs"""
-        if not content or not urls:
-            return ResponseFormatter.format_response(content)
-        
-        # First apply regular formatting
-        formatted_content = ResponseFormatter.format_response(content)
-        
-        # Add citations at the end of sentences that likely reference sources
-        # This is a simple implementation - you can make it more sophisticated
-        citation_patterns = [
-            r'(\. )(?=[A-Z])',  # End of sentences
-            r'(\w+)(\.)(\s+)',   # Word followed by period and space
-        ]
-        
-        # Simple citation insertion - add citations to key statements
-        # You can enhance this logic based on your needs
-        sentences = formatted_content.split('. ')
-        cited_content = []
-        
-        for i, sentence in enumerate(sentences):
-            if sentence.strip():
-                # Add citation to sentences that seem to contain factual information
-                if any(keyword in sentence.lower() for keyword in ['according', 'reported', 'study', 'research', 'data', 'statistics']):
-                    citation_num = min(i + 1, len(urls))  # Ensure we don't exceed available URLs
-                    sentence += f'[{citation_num}]'
-                cited_content.append(sentence)
-        
-        return '. '.join(cited_content)
-
-    # Keep all your existing methods unchanged...
-    @staticmethod
     def format_response(content: str) -> str:
         """Format the AI response to be more structured and readable"""
-        # Your existing implementation
         if not content:
             return content
 
+        # Clean up the content
         content = content.strip()
+
+        # Remove excessive table formatting artifacts
         content = re.sub(r'^\|[-\s:]+\|$', '', content, flags=re.MULTILINE)
         content = re.sub(r'^[-\s]{3,}$', '', content, flags=re.MULTILINE)
-        
+
+        # Apply formatting rules
         content = ResponseFormatter._ensure_proper_headers(content)
         content = ResponseFormatter._format_lists(content)
         content = ResponseFormatter._format_paragraphs(content)
         content = ResponseFormatter._clean_whitespace(content)
-        
+
         return content
-    
+
     @staticmethod
     def _clean_whitespace(content: str) -> str:
         """Clean up whitespace issues"""
@@ -157,7 +128,7 @@ class ResponseFormatter:
 
     @staticmethod
     def extract_urls_from_search_results(search_results_content):
-        """Extract URLs from Tavily search results"""
+        """Extract URLs from Tavily search results - FIXED VERSION"""
         try:
             # Handle both string and dict inputs
             if isinstance(search_results_content, str):

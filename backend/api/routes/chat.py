@@ -6,9 +6,9 @@ from services.chat_service import ChatService
 router = APIRouter()
 chat_service = ChatService()
 
-@router.get("/chat_stream/{message}")
+@router.get("/chat_stream")
 async def chat_stream(
-    message: str,
+    message: str = Query(...),
     checkpoint_id: Optional[str] = Query(None)
 ):
     """Stream chat responses with search capabilities"""
